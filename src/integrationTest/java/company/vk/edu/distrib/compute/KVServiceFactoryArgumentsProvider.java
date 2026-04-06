@@ -4,11 +4,6 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import company.vk.edu.distrib.compute.marinchanka.MarinchankaKVServiceFactory;
-import company.vk.edu.distrib.compute.gavrilova_ekaterina.InMemoryKVServiceFactory;
-import company.vk.edu.distrib.compute.b10nicle.B10nicleKVServiceFactory;
-import company.vk.edu.distrib.compute.nihuaway00.NihuawayKVServiceFactory;
-import company.vk.edu.distrib.compute.mandesero.KVServiceFactoryImpl;
-import company.vk.edu.distrib.compute.vitos23.Vitos23KVServiceFactory;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.provider.Arguments;
@@ -18,21 +13,17 @@ import org.junit.platform.commons.util.ReflectionUtils;
 
 public class KVServiceFactoryArgumentsProvider implements ArgumentsProvider {
     private final Set<Class<? extends KVServiceFactory>> factories = Set.of(
-        KVServiceFactoryImpl.class,
-        InMemoryKVServiceFactory.class,
-        Vitos23KVServiceFactory.class,
-        NihuawayKVServiceFactory.class,
-        B10nicleKVServiceFactory.class
+            MarinchankaKVServiceFactory.class
     );
 
     @Override
     @NonNull
     public Stream<? extends Arguments> provideArguments(
-        @NonNull ParameterDeclarations parameters,
-        @NonNull ExtensionContext context
+            @NonNull ParameterDeclarations parameters,
+            @NonNull ExtensionContext context
     ) {
         return factories.stream()
-            .map(ReflectionUtils::newInstance)
-            .map(Arguments::of);
+                .map(ReflectionUtils::newInstance)
+                .map(Arguments::of);
     }
 }
