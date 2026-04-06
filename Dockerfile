@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+WORKDIR /tmp
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential=12.9ubuntu3 \
@@ -11,11 +13,15 @@ RUN apt-get update && \
     wget=1.21.2-2ubuntu1 && \
     rm -rf /var/lib/apt/lists/*
 
+WORKDIR /tmp
+
 RUN wget https://www.lua.org/ftp/lua-5.3.5.tar.gz && \
     tar -zxf lua-5.3.5.tar.gz && \
     cd lua-5.3.5 && \
     make linux test && \
     make install
+
+WORKDIR /tmp
 
 RUN git clone https://github.com/AmpereTravis/wrk2-aarch64.git wrk2 && \
     cd wrk2 && \

@@ -16,7 +16,13 @@ import java.util.NoSuchElementException;
 
 public class MarinchankaKVService implements KVService {
     private static final Logger log = LoggerFactory.getLogger(MarinchankaKVService.class);
-    private static final String CONTENT_TYPE = "application/octet-stream";
+
+    private static final String METHOD_GET = "GET";
+    private static final String METHOD_PUT = "PUT";
+    private static final String METHOD_DELETE = "DELETE";
+    private static final String PARAM_ID = "id";
+    private static final String CONTENT_TYPE_VALUE = "application/octet-stream";
+
     private static final int METHOD_NOT_ALLOWED = 405;
     private static final int BAD_REQUEST = 400;
     private static final int NOT_FOUND = 404;
@@ -76,7 +82,7 @@ public class MarinchankaKVService implements KVService {
     private final class StatusHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (!"GET".equals(exchange.getRequestMethod())) {
+            if (!METHOD_GET.equals(exchange.getRequestMethod())) {
                 exchange.sendResponseHeaders(METHOD_NOT_ALLOWED, -1);
                 return;
             }
@@ -103,13 +109,13 @@ public class MarinchankaKVService implements KVService {
 
             try {
                 switch (method) {
-                    case "GET":
+                    case METHOD_GET:
                         handleGet(exchange, id);
                         break;
-                    case "PUT":
+                    case METHOD_PUT:
                         handlePut(exchange, id);
                         break;
-                    case "DELETE":
+                    case METHOD_DELETE:
                         handleDelete(exchange, id);
                         break;
                     default:
@@ -127,7 +133,7 @@ public class MarinchankaKVService implements KVService {
 
         private void handleGet(HttpExchange exchange, String id) throws IOException {
             byte[] data = dao.get(id);
-            exchange.getResponseHeaders().set("Content-Type", CONTENT_TYPE);
+            exchange.getResponseHeaders().set("Content-Type", CONTENT_TYPE_VALUE);
             exchange.sendResponseHeaders(STATUS_OK, data.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(data);
@@ -152,7 +158,7 @@ public class MarinchankaKVService implements KVService {
             String[] params = query.split("&");
             for (String param : params) {
                 String[] keyValue = param.split("=", 2);
-                if (keyValue.length == 2 && "id".equals(keyValue[0])) {
+                if (keyValue.length == 2 && PARAM_ID.equals(keyValue[0])) {
                     return keyValue[1];
                 }
             }
