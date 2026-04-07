@@ -58,7 +58,7 @@ public class MarinchankaKVService implements KVService {
             server.start();
             running = true;
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to start server", e);
+            throw new IllegalStateException("Failed to start server on port " + port, e);
         }
     }
 
@@ -71,6 +71,12 @@ public class MarinchankaKVService implements KVService {
         running = false;
         if (server != null) {
             server.stop(0);
+            // Даём время освободить порт перед следующим запуском
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
         try {
             dao.close();
