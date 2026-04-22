@@ -43,7 +43,7 @@ public class MarinchankaKVService implements KVService {
 
     private final int port;
     private final Dao<byte[]> dao;
-    private final ConsistentHashingRouter router;
+    private final ShardingRouter router;
     private HttpServer server;
     private boolean running;
 
@@ -51,7 +51,7 @@ public class MarinchankaKVService implements KVService {
         this(port, dao, null);
     }
 
-    public MarinchankaKVService(int port, Dao<byte[]> dao, ConsistentHashingRouter router) {
+    public MarinchankaKVService(int port, Dao<byte[]> dao, ShardingRouter router) {
         this.port = port;
         this.dao = dao;
         this.router = router;

@@ -5,7 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
-public class ConsistentHashingRouter {
+public class ConsistentHashingRouter implements ShardingRouter {
     private final int virtualNodesCount;
     private final SortedMap<Long, ClusterNode> ring = new ConcurrentSkipListMap<>();
     private final List<ClusterNode> nodes = new ArrayList<>();
@@ -14,6 +14,7 @@ public class ConsistentHashingRouter {
         this.virtualNodesCount = virtualNodesCount;
     }
 
+    @Override
     public void addNode(ClusterNode node) {
         nodes.add(node);
         for (int i = 0; i < virtualNodesCount; i++) {
@@ -22,6 +23,7 @@ public class ConsistentHashingRouter {
         }
     }
 
+    @Override
     public void removeNode(ClusterNode node) {
         nodes.remove(node);
         for (int i = 0; i < virtualNodesCount; i++) {
@@ -30,6 +32,7 @@ public class ConsistentHashingRouter {
         }
     }
 
+    @Override
     public ClusterNode getNode(String key) {
         if (ring.isEmpty()) {
             throw new IllegalStateException("No nodes in cluster");

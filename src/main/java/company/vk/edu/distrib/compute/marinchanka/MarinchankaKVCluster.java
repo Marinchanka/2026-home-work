@@ -12,13 +12,24 @@ public class MarinchankaKVCluster implements KVCluster {
     private static final Logger log = LoggerFactory.getLogger(MarinchankaKVCluster.class);
     private static final int VIRTUAL_NODES = 100;
 
+    public enum Algorithm {
+        CONSISTENT_HASHING,
+        RENDEZVOUS_HASHING
+    }
+
     private final Map<String, MarinchankaKVService> nodes = new ConcurrentHashMap<>();
     private final Map<String, PersistentDao> daos = new ConcurrentHashMap<>();
-    private final ConsistentHashingRouter router;
+    private final ShardingRouter router;
     private final HttpClient httpClient = new HttpClient();
+    private final Algorithm algorithm;
 
     public MarinchankaKVCluster(List<Integer> ports, String baseDataDir) {
-        this.router = new ConsistentHashingRouter(VIRTUAL_NODES);
+        this(ports, baseDataDir, Algorithm.CONSISTENT_HASHING);
+    }
+
+    public MarinchankaKVCluster(List<Integer> ports, String baseDataDir, Algorithm algorithm) {
+        this.algorithm = algorithm;
+        this.router = createRouter(algorithm);
         String dataDir = baseDataDir;
 
         for (int port : ports) {
@@ -26,8 +37,15 @@ public class MarinchankaKVCluster implements KVCluster {
         }
 
         if (log.isInfoEnabled()) {
-            log.info("Created cluster with nodes: {}", nodes.keySet());
+            log.info("Created cluster with algorithm {} and nodes: {}", algorithm, nodes.keySet());
         }
+    }
+
+    private ShardingRouter createRouter(Algorithm algorithm) {
+        return switch (algorithm) {
+            case CONSISTENT_HASHING -> new ConsistentHashingRouter(VIRTUAL_NODES);
+            case RENDEZVOUS_HASHING -> new RendezvousHashingRouter();
+        };
     }
 
     private void addNode(int port, String dataDir) {
@@ -186,8 +204,8 @@ public class MarinchankaKVCluster implements KVCluster {
         }
     }
 
-    public ConsistentHashingRouter getRouter() {
-        return router;
+    public Algorithm getAlgorithm() {
+        return algorithm;
     }
 
     public boolean isLocalPort(int port) {
