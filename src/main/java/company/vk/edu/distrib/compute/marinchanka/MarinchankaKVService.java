@@ -146,18 +146,14 @@ public class MarinchankaKVService implements KVService {
 
         private void handleLocalRequest(HttpExchange exchange, String method, String id) throws IOException {
             try {
-                switch (method) {
-                    case METHOD_GET:
-                        handleGet(exchange, id);
-                        break;
-                    case METHOD_PUT:
-                        handlePut(exchange, id);
-                        break;
-                    case METHOD_DELETE:
-                        handleDelete(exchange, id);
-                        break;
-                    default:
-                        exchange.sendResponseHeaders(METHOD_NOT_ALLOWED, -1);
+                if (METHOD_GET.equals(method)) {
+                    handleGet(exchange, id);
+                } else if (METHOD_PUT.equals(method)) {
+                    handlePut(exchange, id);
+                } else if (METHOD_DELETE.equals(method)) {
+                    handleDelete(exchange, id);
+                } else {
+                    exchange.sendResponseHeaders(METHOD_NOT_ALLOWED, -1);
                 }
             } catch (IllegalArgumentException e) {
                 sendError(exchange, BAD_REQUEST, e.getMessage());

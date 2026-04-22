@@ -17,29 +17,32 @@ public class MarinchankaKVCluster implements KVCluster {
     private final ConsistentHashingRouter router;
     private final HttpClient httpClient = new HttpClient();
 
-    @SuppressWarnings("codacy:AvoidInstantiatingObjectsInLoops")
     public MarinchankaKVCluster(List<Integer> ports, String baseDataDir) {
         this.router = new ConsistentHashingRouter(VIRTUAL_NODES);
         String dataDir = baseDataDir;
 
         for (int port : ports) {
-            ClusterNode node = new ClusterNode("localhost", port);
-            router.addNode(node);
-
-            try {
-                String nodeDataDir = dataDir + "/node_" + port;
-                PersistentDao dao = new PersistentDao(nodeDataDir);
-                daos.put(node.getEndpoint(), dao);
-
-                MarinchankaKVService service = new MarinchankaKVService(port, dao, router);
-                nodes.put(node.getEndpoint(), service);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to create DAO for port " + port, e);
-            }
+            addNode(port, dataDir);
         }
 
         if (log.isInfoEnabled()) {
             log.info("Created cluster with nodes: {}", nodes.keySet());
+        }
+    }
+
+    private void addNode(int port, String dataDir) {
+        ClusterNode node = new ClusterNode("localhost", port);
+        router.addNode(node);
+
+        try {
+            String nodeDataDir = dataDir + "/node_" + port;
+            PersistentDao dao = new PersistentDao(nodeDataDir);
+            daos.put(node.getEndpoint(), dao);
+
+            MarinchankaKVService service = new MarinchankaKVService(port, dao, router);
+            nodes.put(node.getEndpoint(), service);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to create DAO for port " + port, e);
         }
     }
 
