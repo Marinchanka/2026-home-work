@@ -121,22 +121,30 @@ public class MarinchankaKVService implements KVService {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String method = exchange.getRequestMethod();
-            String query = exchange.getRequestURI().getQuery();
-            String id = extractId(query);
+            String id = extractId(exchange.getRequestURI().getQuery());
 
             if (id == null) {
                 sendError(exchange, BAD_REQUEST, "Missing id parameter");
                 return;
             }
 
-            if (router != null) {
-                ClusterNode responsibleNode = router.getNode(id);
-                if (responsibleNode.port() != port) {
-                    proxyRequest(exchange, responsibleNode, id);
-                    return;
-                }
+            if (shouldProxy(id)) {
+                proxyRequest(exchange, router.getNode(id), id);
+                return;
             }
 
+            handleLocalRequest(exchange, method, id);
+        }
+
+        private boolean shouldProxy(String id) {
+            if (router == null) {
+                return false;
+            }
+            ClusterNode responsibleNode = router.getNode(id);
+            return responsibleNode.port() != port;
+        }
+
+        private void handleLocalRequest(HttpExchange exchange, String method, String id) throws IOException {
             try {
                 switch (method) {
                     case METHOD_GET:
@@ -150,7 +158,6 @@ public class MarinchankaKVService implements KVService {
                         break;
                     default:
                         exchange.sendResponseHeaders(METHOD_NOT_ALLOWED, -1);
-                        break;
                 }
             } catch (IllegalArgumentException e) {
                 sendError(exchange, BAD_REQUEST, e.getMessage());
@@ -184,54 +191,9 @@ public class MarinchankaKVService implements KVService {
 
         private void proxyRequest(HttpExchange exchange, ClusterNode targetNode, String id) throws IOException {
             try {
-                String targetUrl = targetNode.getUrl() + "/v0/entity?id=" + id;
                 String method = exchange.getRequestMethod();
-
-                HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                        .uri(URI.create(targetUrl))
-                        .timeout(Duration.ofSeconds(5));
-
-                HttpResponse<byte[]> response;
-
-                switch (method) {
-                    case METHOD_GET:
-                        requestBuilder.GET();
-                        response = PROXY_CLIENT.send(requestBuilder.build(),
-                                HttpResponse.BodyHandlers.ofByteArray());
-                        break;
-                    case METHOD_PUT:
-                        byte[] body = exchange.getRequestBody().readAllBytes();
-                        requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(body));
-                        response = PROXY_CLIENT.send(requestBuilder.build(),
-                                HttpResponse.BodyHandlers.ofByteArray());
-                        break;
-                    case METHOD_DELETE:
-                        requestBuilder.DELETE();
-                        response = PROXY_CLIENT.send(requestBuilder.build(),
-                                HttpResponse.BodyHandlers.ofByteArray());
-                        break;
-                    default:
-                        exchange.sendResponseHeaders(METHOD_NOT_ALLOWED, -1);
-                        return;
-                }
-
-                response.headers().map().forEach((key, values) -> {
-                    if (!"Content-Length".equalsIgnoreCase(key)
-                            && !"Transfer-Encoding".equalsIgnoreCase(key)) {
-                        exchange.getResponseHeaders().put(key, values);
-                    }
-                });
-
-                byte[] responseBody = response.body();
-                if (responseBody != null && responseBody.length > 0) {
-                    exchange.sendResponseHeaders(response.statusCode(), responseBody.length);
-                    try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(responseBody);
-                    }
-                } else {
-                    exchange.sendResponseHeaders(response.statusCode(), -1);
-                }
-
+                HttpResponse<byte[]> response = executeProxyMethod(method, exchange, targetNode, id);
+                forwardProxyResponse(exchange, response);
             } catch (ConnectException e) {
                 sendError(exchange, NOT_FOUND, "Node unavailable");
             } catch (InterruptedException e) {
@@ -240,6 +202,49 @@ public class MarinchankaKVService implements KVService {
             } catch (Exception e) {
                 log.error("Proxy error", e);
                 sendError(exchange, INTERNAL_ERROR, "Proxy error: " + e.getMessage());
+            }
+        }
+
+        private HttpResponse<byte[]> executeProxyMethod(String method, HttpExchange exchange,
+                                                        ClusterNode targetNode, String id)
+                throws IOException, InterruptedException {
+            String targetUrl = targetNode.getUrl() + "/v0/entity?id=" + id;
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(targetUrl))
+                    .timeout(Duration.ofSeconds(5));
+
+            if (METHOD_GET.equals(method)) {
+                return PROXY_CLIENT.send(requestBuilder.GET().build(),
+                        HttpResponse.BodyHandlers.ofByteArray());
+            } else if (METHOD_PUT.equals(method)) {
+                byte[] body = exchange.getRequestBody().readAllBytes();
+                return PROXY_CLIENT.send(
+                        requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(body)).build(),
+                        HttpResponse.BodyHandlers.ofByteArray());
+            } else if (METHOD_DELETE.equals(method)) {
+                return PROXY_CLIENT.send(requestBuilder.DELETE().build(),
+                        HttpResponse.BodyHandlers.ofByteArray());
+            } else {
+                throw new IllegalArgumentException("Unsupported method: " + method);
+            }
+        }
+
+        private void forwardProxyResponse(HttpExchange exchange, HttpResponse<byte[]> response) throws IOException {
+            response.headers().map().forEach((key, values) -> {
+                if (!"Content-Length".equalsIgnoreCase(key)
+                        && !"Transfer-Encoding".equalsIgnoreCase(key)) {
+                    exchange.getResponseHeaders().put(key, values);
+                }
+            });
+
+            byte[] responseBody = response.body();
+            if (responseBody != null && responseBody.length > 0) {
+                exchange.sendResponseHeaders(response.statusCode(), responseBody.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(responseBody);
+                }
+            } else {
+                exchange.sendResponseHeaders(response.statusCode(), -1);
             }
         }
 

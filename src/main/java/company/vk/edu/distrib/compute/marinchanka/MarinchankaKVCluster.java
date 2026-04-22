@@ -17,6 +17,7 @@ public class MarinchankaKVCluster implements KVCluster {
     private final ConsistentHashingRouter router;
     private final HttpClient httpClient = new HttpClient();
 
+    @SuppressWarnings("codacy:AvoidInstantiatingObjectsInLoops")
     public MarinchankaKVCluster(List<Integer> ports, String baseDataDir) {
         this.router = new ConsistentHashingRouter(VIRTUAL_NODES);
         String dataDir = baseDataDir;
