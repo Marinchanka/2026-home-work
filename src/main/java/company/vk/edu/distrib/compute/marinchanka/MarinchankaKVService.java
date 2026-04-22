@@ -85,7 +85,6 @@ public class MarinchankaKVService implements KVService {
         running = false;
         if (server != null) {
             server.stop(0);
-            server = null;
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {

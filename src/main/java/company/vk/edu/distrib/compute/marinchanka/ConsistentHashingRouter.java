@@ -54,7 +54,7 @@ public class ConsistentHashingRouter {
             }
             return Math.abs(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("MD5 not available", e);
+            throw new IllegalStateException("MD5 not available", e);
         }
     }
 

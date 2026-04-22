@@ -7,7 +7,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 public class HttpClient {
-    private static final java.net.http.HttpClient CLIENT = java.net.http.HttpClient.newBuilder()
+    private static final int STATUS_OK = 200;
+    private static final int STATUS_CREATED = 201;
+    private static final int STATUS_ACCEPTED = 202;
+
+    public static final java.net.http.HttpClient CLIENT = java.net.http.HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
@@ -23,12 +27,12 @@ public class HttpClient {
             HttpResponse<byte[]> response = CLIENT.send(request,
                     HttpResponse.BodyHandlers.ofByteArray());
 
-            if (response.statusCode() == 200) {
-                return response.body();
+            if (response.statusCode() != STATUS_OK) {
+                throw new IllegalStateException("Key not found or error: " + response.statusCode());
             }
-            throw new RuntimeException("Key not found or error: " + response.statusCode());
+            return response.body();
         } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Failed to proxy GET to " + node, e);
+            throw new IllegalStateException("Failed to proxy GET to " + node, e);
         }
     }
 
@@ -44,11 +48,11 @@ public class HttpClient {
             HttpResponse<Void> response = CLIENT.send(request,
                     HttpResponse.BodyHandlers.discarding());
 
-            if (response.statusCode() != 201) {
-                throw new RuntimeException("Failed to put: " + response.statusCode());
+            if (response.statusCode() != STATUS_CREATED) {
+                throw new IllegalStateException("Failed to put: " + response.statusCode());
             }
         } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Failed to proxy PUT to " + node, e);
+            throw new IllegalStateException("Failed to proxy PUT to " + node, e);
         }
     }
 
@@ -64,11 +68,11 @@ public class HttpClient {
             HttpResponse<Void> response = CLIENT.send(request,
                     HttpResponse.BodyHandlers.discarding());
 
-            if (response.statusCode() != 202) {
-                throw new RuntimeException("Failed to delete: " + response.statusCode());
+            if (response.statusCode() != STATUS_ACCEPTED) {
+                throw new IllegalStateException("Failed to delete: " + response.statusCode());
             }
         } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Failed to proxy DELETE to " + node, e);
+            throw new IllegalStateException("Failed to proxy DELETE to " + node, e);
         }
     }
 }

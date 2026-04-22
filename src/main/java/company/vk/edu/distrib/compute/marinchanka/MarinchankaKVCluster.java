@@ -19,71 +19,95 @@ public class MarinchankaKVCluster implements KVCluster {
 
     public MarinchankaKVCluster(List<Integer> ports, String baseDataDir) {
         this.router = new ConsistentHashingRouter(VIRTUAL_NODES);
+        String dataDir = baseDataDir;
 
         for (int port : ports) {
             ClusterNode node = new ClusterNode("localhost", port);
             router.addNode(node);
 
             try {
-                String nodeDataDir = baseDataDir + "/node_" + port;
+                String nodeDataDir = dataDir + "/node_" + port;
                 PersistentDao dao = new PersistentDao(nodeDataDir);
                 daos.put(node.getEndpoint(), dao);
 
                 MarinchankaKVService service = new MarinchankaKVService(port, dao, router);
                 nodes.put(node.getEndpoint(), service);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to create DAO for port " + port, e);
+                throw new IllegalStateException("Failed to create DAO for port " + port, e);
             }
         }
 
-        log.info("Created cluster with nodes: {}", nodes.keySet());
+        if (log.isInfoEnabled()) {
+            log.info("Created cluster with nodes: {}", nodes.keySet());
+        }
     }
 
     @Override
     public void start() {
-        log.info("Starting all cluster nodes");
+        if (log.isInfoEnabled()) {
+            log.info("Starting all cluster nodes");
+        }
         nodes.values().forEach(MarinchankaKVService::start);
     }
 
     @Override
     public void start(String endpoint) {
         String cleanEndpoint = endpoint.replace("http://", "");
-        log.info("Starting node: {}", cleanEndpoint);
+        if (log.isInfoEnabled()) {
+            log.info("Starting node: {}", cleanEndpoint);
+        }
+
         MarinchankaKVService service = nodes.get(cleanEndpoint);
         if (service == null) {
             throw new IllegalArgumentException("Unknown endpoint: " + endpoint);
         }
 
+        ensureDaoIsWorking(cleanEndpoint);
+        nodes.get(cleanEndpoint).start();
+    }
+
+    private void ensureDaoIsWorking(String cleanEndpoint) {
         PersistentDao dao = daos.get(cleanEndpoint);
-        if (dao != null) {
-            try {
-                dao.get("__test__");
-            } catch (IOException e) {
+        if (dao == null) {
+            return;
+        }
+
+        try {
+            dao.get("__test__");
+        } catch (IOException e) {
+            if (log.isInfoEnabled()) {
                 log.info("Recreating DAO for {}: {}", cleanEndpoint, e.getMessage());
-                try {
-                    int port = Integer.parseInt(cleanEndpoint.split(":")[1]);
-                    dao = new PersistentDao("./cluster_data/node_" + port);
-                    daos.put(cleanEndpoint, dao);
-                    service = new MarinchankaKVService(port, dao, router);
-                    nodes.put(cleanEndpoint, service);
-                } catch (Exception ex) {
-                    RuntimeException re = new RuntimeException("Failed to recreate DAO: " + ex.getMessage(), ex);
-                    re.addSuppressed(e);
-                    throw re;
-                }
-            } catch (NoSuchElementException e) {
-                // Ключ не найден, DAO работает
-            } catch (Exception e) {
+            }
+            recreateDao(cleanEndpoint, e);
+        } catch (NoSuchElementException ignored) {
+            // Key not found - DAO is working
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
                 log.debug("Test query failed, but DAO may still be ok", e);
             }
         }
+    }
 
-        service.start();
+    private void recreateDao(String cleanEndpoint, IOException cause) {
+        try {
+            int port = Integer.parseInt(cleanEndpoint.split(":")[1]);
+            PersistentDao dao = new PersistentDao("./cluster_data/node_" + port);
+            daos.put(cleanEndpoint, dao);
+            MarinchankaKVService service = new MarinchankaKVService(port, dao, router);
+            nodes.put(cleanEndpoint, service);
+        } catch (Exception ex) {
+            IllegalStateException re = new IllegalStateException(
+                    "Failed to recreate DAO: " + ex.getMessage(), ex);
+            re.addSuppressed(cause);
+            throw re;
+        }
     }
 
     @Override
     public void stop() {
-        log.info("Stopping all cluster nodes");
+        if (log.isInfoEnabled()) {
+            log.info("Stopping all cluster nodes");
+        }
         nodes.values().forEach(MarinchankaKVService::stop);
         daos.values().forEach(dao -> {
             try {
@@ -97,7 +121,9 @@ public class MarinchankaKVCluster implements KVCluster {
     @Override
     public void stop(String endpoint) {
         String cleanEndpoint = endpoint.replace("http://", "");
-        log.info("Stopping node: {}", cleanEndpoint);
+        if (log.isInfoEnabled()) {
+            log.info("Stopping node: {}", cleanEndpoint);
+        }
         MarinchankaKVService service = nodes.get(cleanEndpoint);
         if (service != null) {
             service.stop();
@@ -111,8 +137,6 @@ public class MarinchankaKVCluster implements KVCluster {
                 .toList();
     }
 
-    // Методы для работы с данными
-
     public byte[] get(String key) {
         ClusterNode responsibleNode = router.getNode(key);
         PersistentDao dao = daos.get(responsibleNode.getEndpoint());
@@ -121,7 +145,7 @@ public class MarinchankaKVCluster implements KVCluster {
             try {
                 return dao.get(key);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to get key: " + key, e);
+                throw new IllegalStateException("Failed to get key: " + key, e);
             }
         } else {
             return httpClient.get(responsibleNode, key);
@@ -136,7 +160,7 @@ public class MarinchankaKVCluster implements KVCluster {
             try {
                 dao.upsert(key, value);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to put key: " + key, e);
+                throw new IllegalStateException("Failed to put key: " + key, e);
             }
         } else {
             httpClient.put(responsibleNode, key, value);
@@ -151,7 +175,7 @@ public class MarinchankaKVCluster implements KVCluster {
             try {
                 dao.delete(key);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to delete key: " + key, e);
+                throw new IllegalStateException("Failed to delete key: " + key, e);
             }
         } else {
             httpClient.delete(responsibleNode, key);
