@@ -40,6 +40,7 @@ public class MarinchankaReplicatedService implements ReplicatedService {
     private static final String MSG_KEY_NOT_FOUND = "Key not found";
     private static final String MSG_INTERNAL_ERROR = "Internal server error";
     private static final String MEDIA_TYPE_TEXT = "text/plain; charset=utf-8";
+    private static final int ACCESS_PATH_MIN_LENGTH = 5;
 
     private static final int METHOD_NOT_ALLOWED = 405;
     private static final int BAD_REQUEST = 400;
@@ -215,7 +216,7 @@ public class MarinchankaReplicatedService implements ReplicatedService {
                 return;
             }
 
-            boolean accessStats = parts.length >= 5 && isAccessPath(parts[4]);
+            boolean accessStats = parts.length >= ACCESS_PATH_MIN_LENGTH && isAccessPath(parts[4]);
 
             VersionedInMemoryDao dao = (VersionedInMemoryDao) replicas.get(replicaId);
             StringBuilder json = new StringBuilder(64);
