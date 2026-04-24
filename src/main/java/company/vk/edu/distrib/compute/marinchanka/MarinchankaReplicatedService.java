@@ -28,6 +28,7 @@ public class MarinchankaReplicatedService implements ReplicatedService {
     private static final String PARAM_ACK = "ack";
     private static final String CONTENT_TYPE_VALUE = "application/octet-stream";
     private static final String HEADER_CONTENT_TYPE = "Content-Type";
+    private static final String MEDIA_TYPE_JSON = "application/json";
     private static final String STATS_ACCESS_PATH = "access";
 
     private static final int METHOD_NOT_ALLOWED = 405;
@@ -218,7 +219,7 @@ public class MarinchankaReplicatedService implements ReplicatedService {
             json.append('}');
 
             byte[] response = json.toString().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set(HEADER_CONTENT_TYPE, "application/json");
+            exchange.getResponseHeaders().set(HEADER_CONTENT_TYPE, MEDIA_TYPE_JSON);
             exchange.sendResponseHeaders(STATUS_OK, response.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(response);
