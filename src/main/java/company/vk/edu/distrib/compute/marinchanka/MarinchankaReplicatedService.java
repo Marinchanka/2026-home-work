@@ -215,7 +215,7 @@ public class MarinchankaReplicatedService implements ReplicatedService {
                 return;
             }
 
-            boolean accessStats = parts.length >= 5 && STATS_ACCESS_PATH.equals(parts[4]);
+            boolean accessStats = parts.length >= 5 && isAccessPath(parts[4]);
 
             VersionedInMemoryDao dao = (VersionedInMemoryDao) replicas.get(replicaId);
             StringBuilder json = new StringBuilder(64);
@@ -234,6 +234,10 @@ public class MarinchankaReplicatedService implements ReplicatedService {
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(response);
             }
+        }
+
+        private boolean isAccessPath(String pathSegment) {
+            return STATS_ACCESS_PATH.equals(pathSegment);
         }
 
         private void sendError(HttpExchange exchange, int code, String message) throws IOException {
