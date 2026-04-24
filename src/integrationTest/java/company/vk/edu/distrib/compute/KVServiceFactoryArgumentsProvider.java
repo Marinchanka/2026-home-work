@@ -3,6 +3,7 @@ package company.vk.edu.distrib.compute;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import company.vk.edu.distrib.compute.marinchanka.MarinchankaReplicatedServiceFactory;
 import company.vk.edu.distrib.compute.marinchanka.MarinchankaKVServiceFactory;
 
 import org.jspecify.annotations.NonNull;
@@ -15,7 +16,7 @@ import org.junit.platform.commons.util.ReflectionUtils;
 public class KVServiceFactoryArgumentsProvider implements ArgumentsProvider {
 
     private final Set<Class<? extends KVServiceFactory>> factories = Set.of(
-        MarinchankaKVServiceFactory.class
+        MarinchankaReplicatedServiceFactory.class
     );
 
     @Override
